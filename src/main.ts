@@ -1,7 +1,38 @@
-const canvas = document.getElementById("canvas");
-const context = canvas.getContext("2d");
+import { Vector2d } from "./types";
+import "./styles/index.css";
+
+const CANVAS_WIDTH = 240;
+const CANVAS_HEIGHT = 400;
+const SCALE_FACTOR = 20;
+const PIECES = ["T", "O", "J", "I", "Z", "J"];
+
+const createCanvas = () => {
+  let canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    canvas.id = "canvas";
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+    document.body.appendChild(canvas);
+  }
+  return canvas;
+};
+const getContext = (canvas: HTMLCanvasElement) => {
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("2d context not found");
+  }
+  context.scale(SCALE_FACTOR, SCALE_FACTOR);
+  return context;
+};
+
+const canvas = createCanvas();
+const context = getContext(canvas);
 
 context.scale(20, 20);
+
+const randomPiece = () =>
+  createPiece(PIECES[(PIECES.length * Math.random()) | 0]);
 
 const arenaSweep = () => {
   let rowCount = 1;
@@ -21,7 +52,7 @@ const arenaSweep = () => {
   }
 };
 
-const drawBackground = color => {
+const drawBackground = (color: string) => {
   context.fillStyle = color;
   context.fillRect(0, 0, canvas.width, canvas.height);
 };
@@ -30,7 +61,8 @@ const clearScreen = () => {
   context.clearRect(0, 0, canvas.width, canvas.height);
 };
 
-const createMatrix = (width, height) => {
+type Matrix = number[][];
+const createMatrix = (width: number, height: number) => {
   const matrix = [];
   while (height--) {
     matrix.push(new Array(width).fill(0));
@@ -38,21 +70,18 @@ const createMatrix = (width, height) => {
   return matrix;
 };
 
-const drawMatrix = (matrix, offset) => {
+const drawMatrix = (matrix: Matrix, offset: Vector2d) => {
   matrix.forEach((row, y) => {
     row.forEach((value, x) => {
       if (value !== 0) {
-        context.fillStyle = pallet[value];
+        context.fillStyle = pallet[value] as string;
         context.fillRect(x + offset.x, y + offset.y, 1, 1);
       }
     });
   });
 };
 
-const arenaCols = 12;
-const arenaRows = 20;
-
-const collide = (arena, player) => {
+const collide = (arena: Matrix, player: Player) => {
   const [m, o] = [player.matrix, player.pos];
   for (let y = 0; y < m.length; ++y) {
     for (let x = 0; x < m[y].length; ++x) {
@@ -66,7 +95,7 @@ const collide = (arena, player) => {
   return false;
 };
 
-const merge = (arena, player) => {
+const merge = (arena: Matrix, player: Player) => {
   player.matrix.forEach((row, y) => {
     row.forEach((value, x) => {
       if (value !== 0) {
@@ -88,28 +117,59 @@ const playerDrop = () => {
   dropCounter = 0;
 };
 
-const createPiece = type => {
+const createPiece = (type: string): Matrix => {
   switch (type) {
     case "T":
-      return [[0, 0, 0], [1, 1, 1], [0, 1, 0]];
+      return [
+        [0, 0, 0],
+        [1, 1, 1],
+        [0, 1, 0],
+      ];
       break;
     case "O":
-      return [[2, 2], [2, 2]];
+      return [
+        [2, 2],
+        [2, 2],
+      ];
       break;
     case "L":
-      return [[0, 3, 0], [0, 3, 3], [0, 3, 0]];
+      return [
+        [0, 3, 0],
+        [0, 3, 3],
+        [0, 3, 0],
+      ];
       break;
     case "J":
-      return [[0, 4, 0], [0, 4, 0], [4, 4, 0]];
+      return [
+        [0, 4, 0],
+        [0, 4, 0],
+        [4, 4, 0],
+      ];
       break;
     case "I":
-      return [[0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0]];
+      return [
+        [0, 5, 0, 0],
+        [0, 5, 0, 0],
+        [0, 5, 0, 0],
+        [0, 5, 0, 0],
+      ];
       break;
     case "S":
-      return [[0, 6, 6], [0, 6, 0], [6, 6, 0]];
+      return [
+        [0, 6, 6],
+        [0, 6, 0],
+        [6, 6, 0],
+      ];
       break;
     case "Z":
-      return [[7, 7, 0], [0, 7, 7], [0, 0, 0]];
+      return [
+        [7, 7, 0],
+        [0, 7, 7],
+        [0, 0, 0],
+      ];
+      break;
+    default:
+      throw new Error("Invalid piece type");
   }
 };
 
@@ -121,17 +181,23 @@ const pallet = [
   "#F538FF",
   "#FF8E0D",
   "#FFE138",
-  "#3877FF"
+  "#3877FF",
 ];
 
 const arena = createMatrix(12, 20);
-const player = {
+
+interface Player {
+  pos: Vector2d;
+  matrix: Matrix;
+  score: number;
+}
+const player: Player = {
   pos: { x: 5, y: 5 },
-  matrix: null,
-  score: 0
+  matrix: randomPiece(),
+  score: 0,
 };
 
-const playerMove = dir => {
+const playerMove = (dir: number) => {
   player.pos.x += dir;
   if (collide(arena, player)) {
     player.pos.x -= dir;
@@ -139,7 +205,7 @@ const playerMove = dir => {
 };
 
 const gameOver = () => {
-  arena.forEach(row => row.fill(0));
+  arena.forEach((row) => row.fill(0));
   player.score = 0;
   updateScore();
 };
@@ -154,21 +220,19 @@ const playerReset = () => {
     gameOver();
   }
 };
-
-const rotate = (matrix, dir) => {
+const rotate = (matrix: Matrix, dir: number) => {
   for (let y = 0; y < matrix.length; ++y) {
     for (let x = 0; x < y; ++x) {
       [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
     }
   }
   if (dir > 0) {
-    matrix.forEach(row => row.reverse());
+    matrix.forEach((row) => row.reverse());
   } else {
     matrix.reverse();
   }
 };
-
-const playerRotate = dir => {
+const playerRotate = (dir: number) => {
   const pos = player.pos.x;
   let offset = 1;
   rotate(player.matrix, dir);
@@ -201,7 +265,14 @@ const update = (time = 0) => {
 };
 
 const updateScore = () => {
-  document.getElementById("score").innerText = player.score;
+  let score = document.getElementById("score");
+  if (!score) {
+    score = document.createElement("div");
+    score.id = "score";
+    document.body.appendChild(score);
+  }
+
+  score.innerText = player.score.toString();
 };
 
 const draw = () => {
@@ -211,16 +282,16 @@ const draw = () => {
   drawMatrix(player.matrix, player.pos);
 };
 
-document.addEventListener("keydown", e => {
-  if (e.keyCode === 37) {
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft") {
     playerMove(-1);
-  } else if (e.keyCode === 39) {
+  } else if (e.key === "ArrowRight") {
     playerMove(1);
-  } else if (e.keyCode === 81) {
+  } else if (e.key === "q" || e.key === "Q") {
     playerRotate(-1);
-  } else if (e.keyCode === 87) {
+  } else if (e.key === "w" || e.key === "W") {
     playerRotate(-1);
-  } else if (e.keyCode === 40) {
+  } else if (e.key === "ArrowDown") {
     playerDrop();
   }
 });
